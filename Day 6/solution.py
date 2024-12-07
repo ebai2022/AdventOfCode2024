@@ -41,11 +41,10 @@ def find_possible_loops(matrix, start):
             if matrix[i][j] == "#" or matrix[i][j] == "^":
                 continue
             # empty square, put an obstacle and traverse
-            deepcopy = copy.deepcopy(matrix)
-            assert deepcopy == matrix
-            deepcopy[i][j] = "#"
-            if find_loop(deepcopy, start[0], start[1]):
+            matrix[i][j] = "#"
+            if find_loop(matrix, start[0], start[1]):
                 total += 1
+            matrix[i][j] = "."
     return total
 
 
