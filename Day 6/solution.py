@@ -1,84 +1,88 @@
 from collections import defaultdict
+import copy
 
 # states: upwards (-1, 0), right (0, 1), down (-1, 0), left (0, -1)
 states = [(-1, 0), (0, 1), (1, 0), (0, -1)]
-
+test_input = """....#.....
+.........#
+..........
+..#.......
+.......#..
+..........
+.#..^.....
+........#.
+#.........
+......#...
+"""
 
 def find_distinct_positions(matrix, start):
     state = 0
     seen = set()
-    processed_nodes = defaultdict(set)
-    obstacles = set()
     while True:
         i, j = start
         seen.add(start)
-        processed_nodes[start].add(state)
         next_start = (i + states[state][0], j + states[state][1])
         if is_valid(matrix, next_start):
-            # # try to put an obstacle and create a loop if there is no obstacle already present
-            # if (
-            #     matrix[next_start[0]][next_start[1]] != "#"
-            #     and matrix[next_start[0]][next_start[1]] != "^"
-            # ):
-            #     # simulate putting an obstacle there
-            #     matrix[next_start[0]][next_start[1]] = "#"
-            #     if find_possible_loops(matrix, start, state):
-            #         obstacles.add((next_start))
-            #     matrix[next_start[0]][next_start[1]] = "."
-            # # find the next valid direction to explore
-            while (
-                is_valid(matrix, next_start)
-                and matrix[next_start[0]][next_start[1]] == "#"
-            ):
+            if matrix[next_start[0]][next_start[1]] == "#":
                 state = (state + 1) % 4
                 next_start = (i + states[state][0], j + states[state][1])
             start = next_start
         else:
             break
-    return len(seen), len(obstacles)
+    return len(seen)
 
 
-def find_possible_loops(matrix, start, state):
+def find_possible_loops(matrix, start):
     n, m = len(matrix), len(matrix[0])
-    ans = 0
+    total = 0
     for i in range(n):
         for j in range(m):
-            if matrix[i][j] == ".":
-                seen = set()
-                curr_state = state
-                x, y = start
-                # simulate a barrier there
-                matrix[i][j] = "#"
-                while is_valid(matrix, (x + states[curr_state][0], y + states[curr_state][1])):
-                    if matrix[x + states[curr_state][0]][y + states[curr_state][1]] == "#":
-                        # change direction
-                        curr_state = (curr_state + 1) % 4
-                    if (x, y, curr_state) in seen:
-                        ans += 1
-                        break
-                    seen.add((x, y, curr_state))
-                    x, y = states[curr_state][0] + x, states[curr_state][1] + y
-                matrix[i][j] = "."
-    return ans
-    # seen = set((start[0], start[1], state))
-    # state = (state + 1) % 4
-    # while True:
-    #     i, j = start
-    #     if (i, j, state) in seen:
-    #         return True
-    #     seen.add((i, j, state))
-    #     next_start = (i + states[state][0], j + states[state][1])
-    #     if is_valid(matrix, next_start):
-    #         while (
-    #             is_valid(matrix, next_start)
-    #             and matrix[next_start[0]][next_start[1]] == "#"
-    #         ):
-    #             state = (state + 1) % 4
-    #             next_start = (i + states[state][0], j + states[state][1])
-    #         start = next_start
-    #     else:
-    #         return False
+            print(f"processing {i, j}")
+            if matrix[i][j] == "#" or matrix[i][j] == "^":
+                continue
+            # empty square, put an obstacle and traverse
+            deepcopy = copy.deepcopy(matrix)
+            assert deepcopy == matrix
+            deepcopy[i][j] = "#"
+            if find_loop(deepcopy, start[0], start[1]):
+                total += 1
+    return total
 
+
+def find_loop(deepcopy, x, y):
+    n, m = len(deepcopy), len(deepcopy[0])
+    direction = 0
+    visited = set()
+    while x >= 0 and x < n and y >= 0 and y < m:
+        # check if we have already visited the place in the same orientation (loop found)
+        if (x, y, direction) in visited:
+            # print(f"visited {x, y, direction} before")
+            return True
+        visited.add((x, y, direction))
+        # continue traversing
+        adjacent_walls = 0
+        current_direction = states[direction]
+        for i in range(4):
+            # print(f"current direction: {current_direction}")
+            # if the next step is out of bounds, this is not a loop since we have exited the maze
+            nx, ny = x + current_direction[0], y + current_direction[1]
+            if nx < 0 or nx >= n or ny < 0 or ny >= m:
+                return False
+            # print(f"trying next square: {nx, ny}")
+            # find the first non wall
+            if deepcopy[nx][ny] != "#":
+                break
+            direction = (direction + 1) % 4
+            adjacent_walls += 1
+            # change the direction
+            current_direction = states[direction]
+        # if we are surrounded by walls, return True (SHOULD NEVER BE TRUE)
+        assert adjacent_walls < 4
+        # otherwise, continue traversing
+        x = x + current_direction[0]
+        y = y + current_direction[1]
+    # no loop found
+    return False
 
 def is_valid(matrix, start):
     n, m = len(matrix), len(matrix[0])
@@ -90,6 +94,7 @@ def is_valid(matrix, start):
 if __name__ == "__main__":
     with open("Day 6/input.txt", "r") as file:
         data = file.read().splitlines()
+    # data = test_input.splitlines()
     n, m = len(data), len(data[0])
     matrix = [["."] * m for _ in range(n)]
     row = 0
@@ -99,6 +104,5 @@ if __name__ == "__main__":
             if line[i] == "^":
                 start = (row, i)
         row += 1
-    print(start)
     print(find_distinct_positions(matrix, start))
-    print(find_possible_loops(matrix, start, 0))
+    print(find_possible_loops(matrix, start))
